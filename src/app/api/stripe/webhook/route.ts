@@ -31,21 +31,27 @@ export async function POST(request: NextRequest) {
             session.subscription as string
           );
 
+          const subData = subscription as unknown as {
+            id: string;
+            current_period_end: number;
+            items: { data: Array<{ price: { id: string } }> };
+          };
+
           await prisma.subscription.upsert({
             where: { userId },
             create: {
               userId,
               stripeCustomerId: session.customer as string,
-              stripeSubscriptionId: subscription.id,
-              stripePriceId: subscription.items.data[0].price.id,
-              stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+              stripeSubscriptionId: subData.id,
+              stripePriceId: subData.items.data[0].price.id,
+              stripeCurrentPeriodEnd: new Date(subData.current_period_end * 1000),
               status: "active",
             },
             update: {
               stripeCustomerId: session.customer as string,
-              stripeSubscriptionId: subscription.id,
-              stripePriceId: subscription.items.data[0].price.id,
-              stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+              stripeSubscriptionId: subData.id,
+              stripePriceId: subData.items.data[0].price.id,
+              stripeCurrentPeriodEnd: new Date(subData.current_period_end * 1000),
               status: "active",
             },
           });
@@ -55,13 +61,19 @@ export async function POST(request: NextRequest) {
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
+        const subData = subscription as unknown as {
+          id: string;
+          status: string;
+          current_period_end: number;
+          items: { data: Array<{ price: { id: string } }> };
+        };
         
         await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: subscription.id },
+          where: { stripeSubscriptionId: subData.id },
           data: {
-            stripePriceId: subscription.items.data[0].price.id,
-            stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
-            status: subscription.status === "active" ? "active" : "inactive",
+            stripePriceId: subData.items.data[0].price.id,
+            stripeCurrentPeriodEnd: new Date(subData.current_period_end * 1000),
+            status: subData.status === "active" ? "active" : "inactive",
           },
         });
         break;
