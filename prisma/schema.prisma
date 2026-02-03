@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User and Auth
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  cacheStores   CacheStore[]
+  subscription  Subscription?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Subscription
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  stripePriceId        String?
+  stripeCurrentPeriodEnd DateTime?
+  status               String   @default("inactive")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// Cache Management
+model CacheStore {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cacheKeys   CacheKey[]
+  analytics   CacheAnalytics[]
+  maxMemoryMB Int          @default(100)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([userId, name])
+}
+
+model CacheKey {
+  id           String      @id @default(cuid())
+  key          String
+  value        String      @db.Text
+  ttlSeconds   Int?        // null means no expiration
+  expiresAt    DateTime?
+  storeId      String
+  store        CacheStore  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  sizeBytes    Int         @default(0)
+  hits         Int         @default(0)
+  misses       Int         @default(0)
+  lastAccessed DateTime?
+  metadata     Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([storeId, key])
+  @@index([expiresAt])
+  @@index([key])
+}
+
+model CacheAnalytics {
+  id         String     @id @default(cuid())
+  storeId    String
+  store      CacheStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  timestamp  DateTime   @default(now())
+  totalKeys  Int        @default(0)
+  totalHits  Int        @default(0)
+  totalMisses Int       @default(0)
+  memoryUsedBytes BigInt @default(0)
+  hitRate    Float      @default(0)
+
+  @@index([storeId, timestamp])
+}
