@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Database,
@@ -16,6 +18,9 @@ import {
   HardDrive,
   Zap,
   TrendingUp,
+  LogOut,
+  User,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,9 +53,17 @@ const analyticsData = [
 ];
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [selectedStore, setSelectedStore] = useState(demoStores[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredKeys, setFilteredKeys] = useState(demoKeys);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login?callbackUrl=/dashboard");
+    }
+  }, [status, router]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -59,6 +72,21 @@ export default function Dashboard() {
       setFilteredKeys(demoKeys);
     }
   }, [searchQuery]);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    return null;
+  }
 
   const totalHits = demoStores.reduce((acc, s) => acc + s.hits, 0);
   const totalMisses = demoStores.reduce((acc, s) => acc + s.misses, 0);
@@ -69,10 +97,10 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 h-full w-64 border-r border-border bg-card p-4">
-        <div className="flex items-center gap-2 mb-8">
+        <Link href="/" className="flex items-center gap-2 mb-8">
           <Database className="h-8 w-8 text-primary" />
           <span className="text-xl font-bold">Craig-O-Cache</span>
-        </div>
+        </Link>
 
         <nav className="space-y-2">
           <Button variant="secondary" className="w-full justify-start gap-2">
@@ -122,18 +150,34 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="absolute bottom-4 left-4 right-4">
-          <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="p-4">
-              <div className="text-sm font-medium mb-1">Upgrade to Pro</div>
-              <div className="text-xs text-muted-foreground mb-3">
-                Unlimited stores & keys
+        {/* User Profile */}
+        <div className="absolute bottom-4 left-4 right-4 space-y-2">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+            {session?.user?.image ? (
+              <img
+                src={session.user.image}
+                alt={session.user.name || "User"}
+                className="h-8 w-8 rounded-full"
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
               </div>
-              <Button size="sm" className="w-full">
-                $14/month
-              </Button>
-            </CardContent>
-          </Card>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{session?.user?.name || "User"}</p>
+              <p className="text-xs text-muted-foreground truncate">{session?.user?.email}</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="w-full gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
         </div>
       </aside>
 
@@ -143,7 +187,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Monitor and manage your cache</p>
+            <p className="text-muted-foreground">
+              Welcome back, {session?.user?.name?.split(" ")[0] || "there"}! Monitor and manage your cache.
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" className="gap-2">
@@ -309,7 +355,7 @@ export default function Dashboard() {
                       </td>
                       <td className="px-4 py-3">
                         {item.ttlSeconds ? (
-                          <Badge variant={item.expiresAt && item.expiresAt < new Date(Date.now() + 600000) ? "warning" : "secondary"}>
+                          <Badge variant={item.expiresAt && item.expiresAt < new Date(Date.now() + 600000) ? "destructive" : "secondary"}>
                             <Clock className="h-3 w-3 mr-1" />
                             {formatDuration(item.ttlSeconds)}
                           </Badge>

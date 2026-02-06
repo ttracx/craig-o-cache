@@ -3,6 +3,7 @@ import { Database, Zap, BarChart3, Key, Clock, Trash2, CheckCircle } from "lucid
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AuthButtons } from "@/components/auth/auth-buttons";
 
 const features = [
   {
@@ -83,9 +84,7 @@ export default function Home() {
             <Link href="#pricing" className="text-muted-foreground hover:text-foreground transition">
               Pricing
             </Link>
-            <Link href="/dashboard">
-              <Button>Dashboard</Button>
-            </Link>
+            <AuthButtons />
           </nav>
         </div>
       </header>
@@ -103,7 +102,7 @@ export default function Home() {
           hit/miss analytics, key browser, and memory usage stats.
         </p>
         <div className="flex gap-4 justify-center">
-          <Link href="/dashboard">
+          <Link href="/login?callbackUrl=/dashboard">
             <Button size="lg" className="gap-2">
               <Database className="h-5 w-5" />
               Open Dashboard
@@ -190,7 +189,7 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/dashboard">
+                <Link href="/login?callbackUrl=/dashboard">
                   <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
                     {plan.cta}
                   </Button>
